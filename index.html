@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Transfers in Europe</title>
+    <meta name="viewport" content="initial-scale=1.0">
+    <meta charset="utf-8">
+    <!-- Include Leaflet -->
+    <script src="https://unpkg.com/leaflet@1.2.0/dist/leaflet.js"></script>
+    <link href="https://unpkg.com/leaflet@1.2.0/dist/leaflet.css" rel="stylesheet">
+    <!-- Include CARTO.js -->
+    <script src="https://cartodb-libs.global.ssl.fastly.net/carto.js/v4.1.10/carto.min.js"></script>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700" rel="stylesheet" type="text/css">
+    <style>
+      * { margin:0; padding:0; }
+      html { box-sizing:border-box; height:100%; }
+      body { background:#f2f6f9; height:100%; font-family:"Open sans", Helvetica, Arial, sans-serif; }
+      #container { display:flex; width:100%; height:100%; }
+      #map { flex:1; margin:10px; }
+      #widgets { width:300px; margin:10px 10px 10px 0; }
+      .widget { background:white; padding:10px; margin-bottom:10px; }
+      .widget h1 { font-size:1.2em; }
+      .widget-formula .result { font-size:2em; }
+    </style>
+  </head>
+  <body>
+    <div id="container">
+      <div id="map"></div>
+      <div id="widgets">
+        <div id="competsWidget" class="widget">
+          <h1>European competitions</h1>
+          <select id="selectCompets" class="js-compets" onchange="filterTeamsByCompet()">
+            <option value="0">All</option>
+            <option value="1">Ligue 1</option>
+            <option value="2">Ligue 2</option>
+            <option value="3">Premier League</option>
+            <option value="4">Championship</option>
+            <option value="5">League One</option>
+            <option value="6">League Two</option>
+            <option value="7">Jupiler Pro League</option>
+            <option value="8">Bundesliga</option>
+            <option value="9">Bundesliga 2</option>
+            <option value="10">Serie A</option>
+            <option value="11">Serie B</option>
+            <option value="12">Liga NOS</option>
+            <option value="13">Premier-Liga</option>
+            <option value="14">Scottish premiership</option>
+            <option value="15">Liga Santander</option>
+            <option value="16">Segunda Division</option>
+            <option value="17">Super League</option>
+            <option value="18">Spor Toto Süper Lig</option>
+            <option value="19">Eredivisie</option>
+            <option value="20">Superliga</option>
+            <option value="21">Premier-Liha</option>
+            <option value="22">Austrian Bundesliga</option>
+            <option value="23">Super League</option>
+            <option value="24">Fortuna Liga</option>
+            <option value="25">Prva Liga</option>
+            <option value="26">Jelen SuperLiga</option>
+          </select>
+        </div>
+        <div id="playerCountWidget" class="widget widget-formula">
+          <h1>Players Count</h1>
+          <p><span class="js-player-count result">xxx</span> players left</p>
+        </div>
+      </div>
+    </div>
+    <script>
+      // code will go here!
+      const map = L.map('map').setView([50, 15], 4);
+      // Adding Voyager Basemap
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png', {
+        maxZoom: 18
+      }).addTo(map);
+      // Adding Voyager Labels
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        zIndex: 10
+      }).addTo(map);
+
+      var client = new carto.Client({
+        apiKey: '83a6427331d16e690c6677718e85b916394d29e2',
+        username: 'benoitblanc'
+      });
+
+      const transfersSource = new carto.source.SQL(`
+        select * from transfers_out 
+      `);
+
+      // Aggregation option
+      // const aggregation = new carto.layer.Aggregation({
+      //     threshold: 1,
+      //     resolution: 32,
+      //     placement: carto.layer.Aggregation.placement.SAMPLE,
+      //     columns: {
+      //         total: {
+      //             aggregateFunction: carto.layer.Aggregation.operation.sum,
+      //             aggregatedColumn: "nb_transfers"
+      //         }
+      //     }
+      // });
+
+      const transfersStyle = new carto.style.CartoCSS(`
+        #layer {
+          marker-width: ramp([nb_transfers], 10,30 , quantiles);
+          marker-fill: ramp([name_compet], (#7F3C8D, #11A579, #3969AC, #F2B701, #E73F74, #80BA5A, #E68310, #008695, #CF1C90, #f97b72, #CC78F2, #DE1C70, #A5AA99,), ("Bundesliga", "Bundesliga 2", "Championship", "League One", "League Two", "Segunda Division", "Liga Santander", "Ligue 1", "Ligue 2", "Premier League", "Serie A", "Serie B"), "=");
+          marker-fill-opacity: 1;
+          marker-allow-overlap: true;
+          marker-line-width: 1;
+          marker-line-color: #FFFFFF;
+          marker-line-opacity: 1;
+        }
+        #layer::labels {
+            text-name: [nb_transfers]; 
+            text-face-name: 'DejaVu Sans Book'; 
+            text-size: 10; 
+            text-fill: #FFFFFF; 
+            text-label-position-tolerance: 0; 
+            text-halo-radius: 1; 
+            text-halo-fill: #6F808D; 
+            text-allow-overlap: true; 
+            text-placement: point; 
+            text-placement-type: dummy; 
+        }
+      `);  
+
+      const transfers = new carto.layer.Layer(transfersSource, transfersStyle, {featureOverColumns: ['name_team', 'nb_transfers']});
+
+      // Adding the layers to the client
+      client.addLayers([transfers]);   
+
+      // Adding the layers to the map
+      client.getLeafletLayer().addTo(map);
+
+      // Setting up tooltips
+      // Showing the tooltip when user mouses over a team
+      const popup = L.popup({ closeButton: false });
+      transfers.on(carto.layer.events.FEATURE_OVER, featureEvent => {
+        popup.setLatLng(featureEvent.latLng);
+        if (!popup.isOpen()) {
+          let name_team = featureEvent.data.name_team;
+          let nb_transfers = featureEvent.data.nb_transfers;
+          popup.setContent(`
+              <h1 style="font-size: 14px; font-weight: bold;"> Team : ${name_team} </h1>
+              <p style="font-size: 12px;"> Number of departures : ${nb_transfers} </p>
+          `);
+          //popup.setContent(featureEvent.data.name_team);
+          popup.openOn(map);
+        }
+      });
+
+      // Hiding the tooltip
+      transfers.on(carto.layer.events.FEATURE_OUT, featureEvent => {
+        popup.removeFrom(map);
+      });
+
+      const playerCountDataview = new carto.dataview.Formula(transfersSource, 'nb_transfers', {
+        operation: carto.operation.SUM, // Compute the sum
+      });
+
+      playerCountDataview.on('dataChanged', data => {
+        refreshPlayerCountWidget(data.result);
+      });
+
+      function refreshPlayerCountWidget(playerCount) {
+        const widgetDom = document.querySelector('#playerCountWidget');
+        const playerCountDom = widgetDom.querySelector('.js-player-count');
+        playerCountDom.innerText = Math.floor(playerCount);
+      }
+
+      client.addDataview(playerCountDataview);
+
+      function filterTeamsByCompet() {
+        var e = document.getElementById("selectCompets");
+        var strCompet = e.options[e.selectedIndex].value;
+        let query = ''
+        if (strCompet == 0) {
+          query = 'select * from transfers_out'
+        } else {
+          query = `
+            select * from transfers_out 
+            WHERE id_compet = `+strCompet;
+        }
+
+        transfersSource.setQuery(query);
+      }
+    </script>
+  </body>
+</html>
