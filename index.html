@@ -24,6 +24,22 @@
     </style>
   </head>
   <body>
+  <!-- SIDEBAR -->
+  <div class='app-title'>
+  <h1>FOOTBALL TRANSFERS IN EUROPE IN 2018</h1>
+  </div>
+  <div class='app-menu'>
+    <div class='app-icon open button'>
+    <nav role="navigation">
+      <div id="menuToggle">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </nav>
+    </div>
+  </div>
+
     <div id="container">
       <div id="map"></div>
       <div id="widgets">
@@ -62,7 +78,8 @@
         <div id="playerCountWidget" class="widget widget-formula">
           <h1>Players Count</h1>
           <p><span class="js-player-count result">xxx</span> players left</p>
-        </div>
+        </div>      
+        </p>
       </div>
     </div>
     <script>
@@ -79,9 +96,56 @@
       }).addTo(map);
 
       var client = new carto.Client({
-        apiKey: 'default_public',
+        apiKey: '83a6427331d16e690c6677718e85b916394d29e2',
         username: 'benoitblanc'
       });
+
+      // const stadiumsSource = new carto.source.SQL(`
+      //   select * from stadiums
+      // `);
+      // const stadiumsStyle = new carto.style.CartoCSS(`
+      //   #layer {
+      //     marker-width: 10;
+      //     marker-fill: ramp([name_compet], (#7F3C8D, #11A579, #3969AC, #F2B701, #E73F74, #80BA5A, #E68310, #008695, #CF1C90, #f97b72, #CC78F2, #DE1C70, #A5AA99,), ("Bundesliga", "Bundesliga 2", "Championship", "League One", "League Two", "Segunda Division", "Liga Santander", "Ligue 1", "Ligue 2", "Premier League", "Serie A", "Serie B"), "=");
+      //     marker-fill-opacity: 1;
+      //     marker-allow-overlap: true;
+      //     marker-line-width: 1;
+      //     marker-line-color: #FFFFFF;
+      //     marker-line-opacity: 1;
+      //   }
+      // `);
+      // const stadiums = new carto.layer.Layer(stadiumsSource, stadiumsStyle);
+
+      const trSource = new carto.source.SQL(`
+        select * from transfers
+        `);
+          trSource.setQuery(`
+            with a as (select * from transfers) 
+            select ST_MakeLine(stadiums.the_geom_webmercator, a.the_geom_webmercator) as the_geom_webmercator, 
+                    ST_MakeLine(stadiums.the_geom, a.the_geom) as the_geom, a.cartodb_id, a.player_name, a.out_team, a.in_team 
+            from a, stadiums where a.out_team = stadiums.name_team`);
+
+      const trStyle = new carto.style.CartoCSS(`
+        #layer {
+          marker-width: 8;
+          marker-fill: ramp([compet_in], (#7F3C8D, #11A579, #3969AC, #F2B701, #E73F74, #80BA5A, #E68310, #008695, #CF1C90, #f97b72, #CC78F2, #DE1C70, #A5AA99,), ("Bundesliga", "Bundesliga 2", "Championship", "League One", "League Two", "Segunda Division", "Liga Santander", "Ligue 1", "Ligue 2", "Premier League", "Serie A", "Serie B"), "=");
+          marker-fill-opacity: 1;
+          marker-allow-overlap: true;
+          marker-line-width: 1;
+          marker-line-color: #FFFFFF;
+          marker-line-opacity: 1;
+        }
+      `);
+
+      const trLineStyle = new carto.style.CartoCSS(`
+        #layer {
+          line-width: 0.75;
+          line-color: #000000;
+          line-opacity: 0.5;
+        }
+      `);
+
+      const transfers = new carto.layer.Layer(trSource, trLineStyle, {featureOverColumns: ['player_name', 'out_team', 'in_team']});
 
       const transfersSource = new carto.source.SQL(`
         select * from transfers_out 
@@ -124,10 +188,10 @@
         }
       `);  
 
-      const transfers = new carto.layer.Layer(transfersSource, transfersStyle, {featureOverColumns: ['name_team', 'nb_transfers']});
+      const transfers_out = new carto.layer.Layer(transfersSource, transfersStyle, {featureOverColumns: ['name_team', 'nb_transfers']});
 
       // Adding the layers to the client
-      client.addLayers([transfers]);   
+      client.addLayers([transfers_out, transfers]);   
 
       // Adding the layers to the map
       client.getLeafletLayer().addTo(map);
@@ -135,7 +199,7 @@
       // Setting up tooltips
       // Showing the tooltip when user mouses over a team
       const popup = L.popup({ closeButton: false });
-      transfers.on(carto.layer.events.FEATURE_OVER, featureEvent => {
+      transfers_out.on(carto.layer.events.FEATURE_OVER, featureEvent => {
         popup.setLatLng(featureEvent.latLng);
         if (!popup.isOpen()) {
           let name_team = featureEvent.data.name_team;
@@ -150,8 +214,31 @@
       });
 
       // Hiding the tooltip
-      transfers.on(carto.layer.events.FEATURE_OUT, featureEvent => {
+      transfers_out.on(carto.layer.events.FEATURE_OUT, featureEvent => {
         popup.removeFrom(map);
+      });
+
+      // Setting up tooltips
+      // Showing the tooltip when user mouses over a team
+      const popup_transfer = L.popup({ closeButton: false });
+      transfers.on(carto.layer.events.FEATURE_OVER, featureEvent => {
+        popup_transfer.setLatLng(featureEvent.latLng);
+        if (!popup_transfer.isOpen()) {
+          let player_name = featureEvent.data.player_name;
+          let out_team = featureEvent.data.out_team;
+          let in_team = featureEvent.data.in_team;
+          popup_transfer.setContent(`
+              <h1 style="font-size: 14px; font-weight: bold;"> Player : ${player_name} </h1>
+              <p style="font-size: 12px;"> Origin team : ${out_team} </p>
+              <p style="font-size: 12px;"> Destination team : ${in_team} </p>
+          `);
+          popup_transfer.openOn(map);
+        }
+      });
+
+      // Hiding the tooltip
+      transfers.on(carto.layer.events.FEATURE_OUT, featureEvent => {
+        popup_transfer.removeFrom(map);
       });
 
       const playerCountDataview = new carto.dataview.Formula(transfersSource, 'nb_transfers', {
@@ -173,15 +260,28 @@
       function filterTeamsByCompet() {
         var e = document.getElementById("selectCompets");
         var strCompet = e.options[e.selectedIndex].value;
-        let query = ''
+        let query = '';
+        let query_transfers = '';
         if (strCompet == 0) {
-          query = 'select * from transfers_out'
+          query = 'select * from transfers_out';
+          query_transfers = `
+            with a as (select * from transfers) 
+            select ST_MakeLine(transfers_out.the_geom_webmercator, a.the_geom_webmercator) as the_geom_webmercator, 
+                    ST_MakeLine(transfers_out.the_geom, a.the_geom) as the_geom, a.cartodb_id, a.player_name, a.out_team, a.in_team 
+            from a, transfers_out where a.out_team = transfers_out.name_team`;
         } else {
           query = `
             select * from transfers_out 
             WHERE id_compet = `+strCompet;
+
+          query_transfers=`
+            with a as (select * from transfers WHERE id_c_out = `+ strCompet + `) 
+            select ST_MakeLine(transfers_out.the_geom_webmercator, a.the_geom_webmercator) as the_geom_webmercator, 
+                    ST_MakeLine(transfers_out.the_geom, a.the_geom) as the_geom, a.cartodb_id, a.player_name, a.out_team, a.in_team 
+            from a, transfers_out where a.out_team = transfers_out.name_team`;
         }
 
+        trSource.setQuery(query_transfers)
         transfersSource.setQuery(query);
       }
     </script>
