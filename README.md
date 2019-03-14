@@ -1,7 +1,8 @@
 # Football-transfers
 Football transfers in Europe in 2018
 
-Ce fichier utilise la bibliothèque Carto.js et Leaflet pour afficher les transferts sortants de chaque club d'Europe.
+Ce projet utilise la bibliothèque Carto.js et Leaflet pour afficher les transferts sortants de chaque club 
+d'Europe.
 
 La base de données regroupe toutes les équipes des 20 premiers championnats européens (sauf Chypre) et les divisions professionnelles inférieures en Angleterre, Allemagne, Espagne, France et Italie. Il y a donc 26 championnats au total avec toutes les équipes localisées sur la carte grâce à leur stade.
 
