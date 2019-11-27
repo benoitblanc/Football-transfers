@@ -12,3 +12,5 @@ Fonctionnalités :
 Sur le côté, on peut choisir dans la liste déroulante un championnat en particulier pour n'afficher que les équipes correspondantes. Le nombre de transferts sortants de chaque équipe est représenté sur son marqueur. De plus, la taille de ces marqueurs est proportionnelle au nombre de transferts sortants de chaque équipe. La couleur des marqueurs change en fonction du championnat auquel l'équipe appartient.
 Il y a également un compteur pour afficher le nombre total de transferts en fonction du championnat choisi.
 Au passage de la souris sur un marqueur, l'équipe correspondante et le nombre de départs s'affichent dans une fenêtre popup.
+
+https://benoitblanc.github.io/Football-transfers/
